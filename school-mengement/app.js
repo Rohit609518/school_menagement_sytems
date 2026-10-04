@@ -40,10 +40,6 @@ app.use("/api/parents", parentRoutes);
 
 
 
-app.get("/", (req, res) => {
-    res.send("student mengement system runing");
-});
-
 app.get("/api", (req, res) => {
     res.json({
         message: "School Management System API is running successfully",
@@ -65,6 +61,11 @@ app.get("/api", (req, res) => {
 
 app.get("/health", (req, res) => {
     res.status(200).json({ status: "ok", timestamp: new Date() });
+});
+
+// Serve Frontend SPA for all other routes (login, dashboard, etc.)
+app.use((req, res) => {
+    res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 const PORT = process.env.PORT || 5000;
