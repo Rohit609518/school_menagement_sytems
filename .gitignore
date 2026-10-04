@@ -1,7 +1,6 @@
 # Dependencies
 node_modules/
 **/node_modules/
-.git_subfolder_backups/
 
 # Environment variables
 .env
