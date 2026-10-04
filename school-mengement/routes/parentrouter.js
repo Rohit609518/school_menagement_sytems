@@ -17,7 +17,7 @@ const router = express.Router();
 router.post(
     "/",
     Protect,
-    rolmiddleware("Admin"),
+    rolmiddleware("Admin", "Teacher"),
     createParent
 );
 
@@ -45,14 +45,14 @@ router.get(
 router.put(
     "/:id",
     Protect,
-    rolmiddleware("Admin"),
+    rolmiddleware("Admin", "Teacher"),
     updateParent
 );
 
 router.delete(
     "/:id",
     Protect,
-    rolmiddleware("Admin"),
+    rolmiddleware("Admin", "Teacher"),
     deleteParent
 );
 

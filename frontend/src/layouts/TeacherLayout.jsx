@@ -10,6 +10,8 @@ import {
   X,
   Menu,
   GraduationCap,
+  DollarSign,
+  UserCheck,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -43,6 +45,16 @@ function TeacherLayout({ children, title = "Teacher Portal", subtitle = "" }) {
       name: "Results & Grades",
       icon: BookOpen,
       path: "/teacher/results",
+    },
+    {
+      name: "Fees Records",
+      icon: DollarSign,
+      path: "/admin/fees",
+    },
+    {
+      name: "Parents Corner",
+      icon: UserCheck,
+      path: "/admin/parents",
     },
     {
       name: "Meetings",

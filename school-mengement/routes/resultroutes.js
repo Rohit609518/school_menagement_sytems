@@ -19,6 +19,6 @@ router.get("/", Protect, rolmiddleware("Admin", "Teacher", "Student", "Parent"),
 router.get("/student/:studentId", Protect, rolmiddleware("Admin", "Teacher", "Student", "Parent"), getResults);
 router.get("/:id", Protect, rolmiddleware("Admin", "Teacher", "Student", "Parent"), getResultId);
 router.put("/:id", Protect, rolmiddleware("Admin", "Teacher"), updateResult);
-router.delete("/:id", Protect, rolmiddleware("Admin"), deleteResult);
+router.delete("/:id", Protect, rolmiddleware("Admin", "Teacher"), deleteResult);
 
 module.exports = router;

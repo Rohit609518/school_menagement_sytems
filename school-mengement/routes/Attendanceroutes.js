@@ -18,6 +18,6 @@ router.post("/",Protect, rolmiddleware("Admin","Teacher"),Attendancemark);
 router.get("/",Protect,rolmiddleware("Admin", "Teacher", "Student", "Parent"),getAttendance);
 router.get("/student/:studentId",Protect,rolmiddleware("Admin", "Teacher", "Student", "Parent"),getAttendanceBystudent);
 router.put("/:id",Protect,rolmiddleware("Admin","Teacher"),getupdateAttendance);
-router.delete("/:id",Protect,rolmiddleware("Admin"),getdeleteByattendance);
+router.delete("/:id",Protect,rolmiddleware("Admin", "Teacher"),getdeleteByattendance);
 
 module.exports = router;

@@ -22,6 +22,6 @@ router.get("/",Protect,rolmiddleware("Admin", "Teacher", "Parent"),getMeeting);
 
 router.get("/:id",Protect,rolmiddleware("Admin", "Teacher", "Parent"),getMeetingById);
 router.put("/:id",Protect,rolmiddleware("Admin","Teacher"),getMeetingUpdate);
-router.delete("/:id",Protect,rolmiddleware("Admin"),deleteMeeting);
+router.delete("/:id",Protect,rolmiddleware("Admin", "Teacher"),deleteMeeting);
 
 module.exports = router

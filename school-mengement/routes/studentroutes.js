@@ -37,6 +37,6 @@ router.get("/:id",Protect,rolmiddleware("Admin", "Teacher", "Student"),getFindId
 
 router.put("/:id",Protect,rolmiddleware("Admin","Teacher"),updatestudent);
 
-router.delete("/:id",Protect,rolmiddleware("Admin"),DeleteStudent);
+router.delete("/:id",Protect,rolmiddleware("Admin", "Teacher"),DeleteStudent);
 
 module.exports = router ;

@@ -40,7 +40,7 @@ router.put(
 router.delete(
     "/:id",
     Protect, 
-    rolmiddleware("Admin"),
+    rolmiddleware("Admin", "Teacher"),
     deleteHomework)
 
 module.exports = router;
