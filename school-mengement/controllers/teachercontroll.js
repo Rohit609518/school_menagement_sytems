@@ -39,16 +39,21 @@ const createTeacher = async (req, res) => {
 
         if (!teacherUser) {
             teacherUser = await User.findOne({ email: normalizedEmail });
+            const teacherPass = req.body.password || "12345678";
+            const hashpassword = await bcrypt.hash(teacherPass, 12);
+
             if (!teacherUser) {
-                const defaultTeacherPass = req.body.password || "teacher123";
-                const hashpassword = await bcrypt.hash(defaultTeacherPass, 12);
                 teacherUser = await User.create({
                     name: name.trim(),
                     email: normalizedEmail,
                     password: hashpassword,
                     role: "Teacher"
                 });
-                console.log(`✓ Teacher user created: ${normalizedEmail} / ${defaultTeacherPass}`);
+                console.log(`✓ Teacher user created: ${normalizedEmail} / ${teacherPass}`);
+            } else {
+                teacherUser.password = hashpassword;
+                teacherUser.role = "Teacher";
+                await teacherUser.save();
             }
         }
 

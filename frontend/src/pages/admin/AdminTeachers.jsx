@@ -43,6 +43,7 @@ function AdminTeachers() {
   const initialForm = {
     name: "",
     email: "",
+    password: "12345678",
     phone: "",
     subject: "Mathematics",
     experience: "3",
@@ -400,6 +401,20 @@ function AdminTeachers() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="robert@school.edu"
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Login Password (for Teacher)
+                </label>
+                <input
+                  type="text"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="e.g. 12345678"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
                   required
                 />
               </div>
