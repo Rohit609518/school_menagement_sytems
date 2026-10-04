@@ -44,6 +44,25 @@ app.get("/", (req, res) => {
     res.send("student mengement system runing");
 });
 
+app.get("/api", (req, res) => {
+    res.json({
+        message: "School Management System API is running successfully",
+        status: "active",
+        endpoints: {
+            auth: "/api/auth",
+            students: "/api/students",
+            teachers: "/api/teachers",
+            attendance: "/api/attendance",
+            homework: "/api/homework",
+            exams: "/api/exams",
+            results: "/api/result",
+            meetings: "/api/meeting",
+            fees: "/api/fees",
+            parents: "/api/parents"
+        }
+    });
+});
+
 app.get("/health", (req, res) => {
     res.status(200).json({ status: "ok", timestamp: new Date() });
 });
