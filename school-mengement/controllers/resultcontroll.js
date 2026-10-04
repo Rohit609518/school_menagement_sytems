@@ -25,7 +25,7 @@ const createresult = async (req, res) => {
         const studentExists = await Student.findById(student);
         if (!studentExists) {
             return res.status(404).json({
-                message: "student not found"
+                message: "Student not found"
             });
         }
 
@@ -58,11 +58,8 @@ const createresult = async (req, res) => {
                 ...populatedResult.toObject(),
                 percentage,
                 grade
-            },
-            percentage,
-            grade
+            }
         });
-
     } catch (error) {
         res.status(500).json({
             message: error.message
@@ -72,66 +69,97 @@ const createresult = async (req, res) => {
 
 const getAllResults = async (req, res) => {
     try {
-        let filter = {};
-
-        if (req.user && req.user.role === "Student") {
-            const studentDoc = await Student.findOne({
-                $or: [{ user: req.user.id }, { _id: req.user.id }]
-            });
-            if (studentDoc) {
-                filter.student = studentDoc._id;
-            } else {
-                return res.status(200).json({
-                    message: "Results fetched successfully",
-                    results: [],
-                    result: []
-                });
-            }
-        }
-
-        if (req.user && req.user.role === "Parent") {
-            const parentDoc = await Parent.findOne({ user: req.user.id });
-            if (parentDoc) {
-                filter.student = parentDoc.student;
-            } else {
-                return res.status(200).json({
-                    message: "Results fetched successfully",
-                    results: [],
-                    result: []
-                });
-            }
-        }
-
-        const results = await Result.find(filter)
+        const results = await Result.find()
             .populate("student", "name email studentclass")
-            .sort({ Semester: 1, Subject: 1 });
+            .sort({ createdAt: -1 });
 
-        const resultData = results.map((item) => {
-            const total = item.totalmarks || 1;
-            const percentage = Number(((item.obtainedMarks / total) * 100).toFixed(2));
+        const formattedResults = results.map((r) => {
+            const percentage = Number(((r.obtainedMarks / (r.totalmarks || 1)) * 100).toFixed(2));
             const grade = calculateGrade(percentage);
-
             return {
-                _id: item._id,
-                student: item.student,
-                Semester: item.Semester,
-                Subject: item.Subject,
-                totalmarks: item.totalmarks,
-                obtainedMarks: item.obtainedMarks,
+                ...r.toObject(),
                 percentage,
                 grade
             };
         });
 
         res.status(200).json({
-            message: "Results fetched successfully",
-            results: resultData,
-            result: resultData
+            message: "All Results fetched successfully",
+            results: formattedResults
         });
     } catch (error) {
         res.status(500).json({
             message: error.message
         });
+    }
+};
+
+// GET /api/result/my (Student only)
+const getMyResults = async (req, res) => {
+    try {
+        const studentDoc = await Student.findOne({
+            $or: [{ user: req.user.id }, { _id: req.user.id }, { email: req.user.email?.toLowerCase() }]
+        });
+
+        if (!studentDoc) {
+            return res.status(200).json({
+                message: "No student profile found for this account",
+                results: []
+            });
+        }
+
+        const results = await Result.find({ student: studentDoc._id })
+            .populate("student", "name email studentclass")
+            .sort({ createdAt: -1 });
+
+        const formattedResults = results.map((r) => {
+            const percentage = Number(((r.obtainedMarks / (r.totalmarks || 1)) * 100).toFixed(2));
+            const grade = calculateGrade(percentage);
+            return { ...r.toObject(), percentage, grade };
+        });
+
+        res.status(200).json({
+            message: "My results fetched successfully",
+            student: studentDoc,
+            results: formattedResults
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// GET /api/result/child (Parent only)
+const getChildResults = async (req, res) => {
+    try {
+        const parentDoc = await Parent.findOne({
+            $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }]
+        }).populate("student", "name email studentclass");
+
+        if (!parentDoc || !parentDoc.student) {
+            return res.status(200).json({
+                message: "No linked child found for this parent account",
+                child: null,
+                results: []
+            });
+        }
+
+        const results = await Result.find({ student: parentDoc.student._id })
+            .populate("student", "name email studentclass")
+            .sort({ createdAt: -1 });
+
+        const formattedResults = results.map((r) => {
+            const percentage = Number(((r.obtainedMarks / (r.totalmarks || 1)) * 100).toFixed(2));
+            const grade = calculateGrade(percentage);
+            return { ...r.toObject(), percentage, grade };
+        });
+
+        res.status(200).json({
+            message: "Child results fetched successfully",
+            child: parentDoc.student,
+            results: formattedResults
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 };
 
@@ -142,61 +170,48 @@ const getResults = async (req, res) => {
         const student = await Student.findById(studentId);
         if (!student) {
             return res.status(404).json({
-                message: "student not found"
+                message: "Student not found"
             });
         }
 
-        // Student authorization check
+        // Student ownership check
         if (req.user && req.user.role === "Student") {
             const isOwn = String(student._id) === String(req.user.id) ||
                           (student.user && String(student.user) === String(req.user.id));
             if (!isOwn) {
                 return res.status(403).json({
-                    message: "You can only view your own results"
+                    message: "Access denied. You can only see your own results."
                 });
             }
         }
 
-        // Parent authorization check
+        // Parent ownership check
         if (req.user && req.user.role === "Parent") {
             const parent = await Parent.findOne({
-                user: req.user.id,
+                $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }],
                 student: studentId
             });
             if (!parent) {
                 return res.status(403).json({
-                    message: "You can only view your child's results"
+                    message: "Access denied. You can only see your child's results."
                 });
             }
         }
 
-        const results = await Result.find({
-            student: studentId
-        })
-        .populate("student", "name email studentclass")
-        .sort({ Semester: 1, Subject: 1 });
+        const results = await Result.find({ student: studentId })
+            .populate("student", "name email studentclass")
+            .sort({ createdAt: -1 });
 
-        const resultData = results.map((item) => {
-            const total = item.totalmarks || 1;
-            const percentage = Number(((item.obtainedMarks / total) * 100).toFixed(2));
+        const formattedResults = results.map((r) => {
+            const percentage = Number(((r.obtainedMarks / (r.totalmarks || 1)) * 100).toFixed(2));
             const grade = calculateGrade(percentage);
-
-            return {
-                _id: item._id,
-                student: item.student,
-                Semester: item.Semester,
-                Subject: item.Subject,
-                totalmarks: item.totalmarks,
-                obtainedMarks: item.obtainedMarks,
-                percentage,
-                grade
-            };
+            return { ...r.toObject(), percentage, grade };
         });
 
         res.status(200).json({
-            message: "Results fetched successfully",
-            results: resultData,
-            result: resultData
+            message: "Student results fetched successfully",
+            student,
+            results: formattedResults
         });
     } catch (error) {
         res.status(500).json({
@@ -212,28 +227,48 @@ const getResultId = async (req, res) => {
 
         if (!result) {
             return res.status(404).json({
-                message: "Result not found "
+                message: "Result not found"
             });
         }
 
-        const total = result.totalmarks || 1;
-        const percentage = Number(((result.obtainedMarks / total) * 100).toFixed(2));
-        const grade = calculateGrade(percentage);
+        // Student ownership check
+        if (req.user && req.user.role === "Student") {
+            const studentId = result.student?._id;
+            const student = await Student.findById(studentId);
+            const isOwn = student && (
+                String(student._id) === String(req.user.id) ||
+                (student.user && String(student.user) === String(req.user.id))
+            );
+            if (!isOwn) {
+                return res.status(403).json({
+                    message: "Access denied. You can only see your own result."
+                });
+            }
+        }
 
-        const formattedResult = {
-            _id: result._id,
-            student: result.student,
-            Semester: result.Semester,
-            Subject: result.Subject,
-            totalmarks: result.totalmarks,
-            obtainedMarks: result.obtainedMarks,
-            percentage,
-            grade
-        };
+        // Parent ownership check
+        if (req.user && req.user.role === "Parent") {
+            const parent = await Parent.findOne({
+                $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }],
+                student: result.student?._id
+            });
+            if (!parent) {
+                return res.status(403).json({
+                    message: "Access denied. You can only see your child's result."
+                });
+            }
+        }
+
+        const percentage = Number(((result.obtainedMarks / (result.totalmarks || 1)) * 100).toFixed(2));
+        const grade = calculateGrade(percentage);
 
         res.status(200).json({
             message: "Result fetched successfully",
-            result: formattedResult
+            result: {
+                ...result.toObject(),
+                percentage,
+                grade
+            }
         });
     } catch (error) {
         res.status(500).json({
@@ -245,41 +280,26 @@ const getResultId = async (req, res) => {
 const updateResult = async (req, res) => {
     try {
         const result = await Result.findById(req.params.id);
-
         if (!result) {
             return res.status(404).json({
                 message: "Result not found"
             });
         }
 
-        // Fixed: Check req.body.student instead of req.params.student!
-        if (req.body.student !== undefined) {
-            const studentExists = await Student.findById(req.body.student);
+        const { Semester, Subject, totalmarks, obtainedMarks, student } = req.body;
 
+        if (student) {
+            const studentExists = await Student.findById(student);
             if (!studentExists) {
-                return res.status(404).json({
-                    message: "Student is not found"
-                });
+                return res.status(404).json({ message: "Student not found" });
             }
-
-            result.student = req.body.student;
+            result.student = student;
         }
 
-        if (req.body.Semester !== undefined) {
-            result.Semester = req.body.Semester;
-        }
-
-        if (req.body.Subject !== undefined) {
-            result.Subject = req.body.Subject;
-        }
-
-        if (req.body.totalmarks !== undefined) {
-            result.totalmarks = Number(req.body.totalmarks);
-        }
-
-        if (req.body.obtainedMarks !== undefined) {
-            result.obtainedMarks = Number(req.body.obtainedMarks);
-        }
+        if (Semester) result.Semester = Semester.trim();
+        if (Subject) result.Subject = Subject.trim();
+        if (totalmarks !== undefined) result.totalmarks = Number(totalmarks);
+        if (obtainedMarks !== undefined) result.obtainedMarks = Number(obtainedMarks);
 
         if (result.obtainedMarks > result.totalmarks) {
             return res.status(400).json({
@@ -289,17 +309,16 @@ const updateResult = async (req, res) => {
 
         await result.save();
 
-        const total = result.totalmarks || 1;
-        const percentage = Number(((result.obtainedMarks / total) * 100).toFixed(2));
-        const grade = calculateGrade(percentage);
-
-        const updated = await Result.findById(result._id)
+        const updatedResult = await Result.findById(result._id)
             .populate("student", "name email studentclass");
+
+        const percentage = Number(((updatedResult.obtainedMarks / (updatedResult.totalmarks || 1)) * 100).toFixed(2));
+        const grade = calculateGrade(percentage);
 
         res.status(200).json({
             message: "Result updated successfully",
             result: {
-                ...updated.toObject(),
+                ...updatedResult.toObject(),
                 percentage,
                 grade
             }
@@ -314,7 +333,6 @@ const updateResult = async (req, res) => {
 const deleteResult = async (req, res) => {
     try {
         const result = await Result.findByIdAndDelete(req.params.id);
-
         if (!result) {
             return res.status(404).json({
                 message: "Result not found"
@@ -325,7 +343,6 @@ const deleteResult = async (req, res) => {
             message: "Result deleted successfully",
             result
         });
-
     } catch (error) {
         res.status(500).json({
             message: error.message
@@ -336,6 +353,8 @@ const deleteResult = async (req, res) => {
 module.exports = {
     createresult,
     getAllResults,
+    getMyResults,
+    getChildResults,
     getResults,
     getResultId,
     updateResult,

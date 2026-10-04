@@ -3,6 +3,8 @@ const express = require("express");
 const {
     Attendancemark,
     getAttendance,
+    getMyAttendance,
+    getChildAttendance,
     getAttendanceBystudent,
     getupdateAttendance,
     getdeleteByattendance
@@ -13,11 +15,25 @@ const router = express.Router();
 const Protect = require("../middleware/authmiddleware");
 const rolmiddleware = require("../middleware/rollmiddleware");
 
-router.post("/",Protect, rolmiddleware("Admin","Teacher"),Attendancemark);
+// Teacher and Admin can create attendance
+router.post("/", Protect, rolmiddleware("Admin", "Teacher"), Attendancemark);
 
-router.get("/",Protect,rolmiddleware("Admin", "Teacher", "Student", "Parent"),getAttendance);
-router.get("/student/:studentId",Protect,rolmiddleware("Admin", "Teacher", "Student", "Parent"),getAttendanceBystudent);
-router.put("/:id",Protect,rolmiddleware("Admin","Teacher"),getupdateAttendance);
-router.delete("/:id",Protect,rolmiddleware("Admin", "Teacher"),getdeleteByattendance);
+// Student gets their own attendance
+router.get("/my", Protect, rolmiddleware("Student"), getMyAttendance);
+
+// Parent gets their child's attendance
+router.get("/child", Protect, rolmiddleware("Parent"), getChildAttendance);
+
+// Admin and Teacher get all/relevant attendance
+router.get("/", Protect, rolmiddleware("Admin", "Teacher"), getAttendance);
+
+// Specific student lookup with ownership protection
+router.get("/student/:studentId", Protect, rolmiddleware("Admin", "Teacher", "Student", "Parent"), getAttendanceBystudent);
+
+// Teacher and Admin can update attendance
+router.put("/:id", Protect, rolmiddleware("Admin", "Teacher"), getupdateAttendance);
+
+// Only Admin can delete attendance records
+router.delete("/:id", Protect, rolmiddleware("Admin"), getdeleteByattendance);
 
 module.exports = router;

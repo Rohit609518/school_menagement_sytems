@@ -223,12 +223,15 @@ function ParentDashboard() {
           {/* Child Metric Highlights */}
           {child && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
+              <div
+                onClick={() => navigate("/parent/attendance")}
+                className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs hover:border-amber-300 hover:shadow-md transition cursor-pointer group"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     Child's Attendance
                   </span>
-                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 group-hover:scale-110 transition">
                     <CalendarCheck size={18} />
                   </div>
                 </div>
@@ -236,18 +239,22 @@ function ParentDashboard() {
                   <span className="text-2xl font-black text-slate-800">
                     {childStats.attendanceRate}%
                   </span>
-                  <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">
-                    {childStats.attendanceRate >= 75 ? "Consistent Presence" : "Low Attendance"}
+                  <p className="text-[11px] text-emerald-600 font-semibold mt-0.5 flex items-center gap-1">
+                    <span>{childStats.attendanceRate >= 75 ? "Consistent Presence" : "Low Attendance"}</span>
+                    <ArrowRight size={11} />
                   </p>
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
+              <div
+                onClick={() => navigate("/parent/homework")}
+                className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs hover:border-amber-300 hover:shadow-md transition cursor-pointer group"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     Homework
                   </span>
-                  <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                  <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 group-hover:scale-110 transition">
                     <BookOpen size={18} />
                   </div>
                 </div>
@@ -255,18 +262,22 @@ function ParentDashboard() {
                   <span className="text-2xl font-black text-slate-800">
                     {childStats.homeworkCount}
                   </span>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Tasks assigned
+                  <p className="text-[11px] text-indigo-600 font-semibold mt-0.5 flex items-center gap-1">
+                    <span>Tasks assigned</span>
+                    <ArrowRight size={11} />
                   </p>
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
+              <div
+                onClick={() => navigate("/parent/exams")}
+                className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs hover:border-amber-300 hover:shadow-md transition cursor-pointer group"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     Exams Logged
                   </span>
-                  <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+                  <div className="p-2 rounded-xl bg-amber-50 text-amber-600 group-hover:scale-110 transition">
                     <FileText size={18} />
                   </div>
                 </div>
@@ -274,18 +285,22 @@ function ParentDashboard() {
                   <span className="text-2xl font-black text-slate-800">
                     {childStats.examsCount}
                   </span>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Tests recorded
+                  <p className="text-[11px] text-amber-600 font-semibold mt-0.5 flex items-center gap-1">
+                    <span>Tests recorded</span>
+                    <ArrowRight size={11} />
                   </p>
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
+              <div
+                onClick={() => navigate("/parent/fees")}
+                className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs hover:border-amber-300 hover:shadow-md transition cursor-pointer group"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     Fee Status
                   </span>
-                  <div className="p-2 rounded-xl bg-rose-50 text-rose-600">
+                  <div className="p-2 rounded-xl bg-rose-50 text-rose-600 group-hover:scale-110 transition">
                     <Wallet size={18} />
                   </div>
                 </div>
@@ -301,8 +316,9 @@ function ParentDashboard() {
                   >
                     {childStats.feeStatus}
                   </span>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Tuition fees
+                  <p className="text-[11px] text-slate-500 font-semibold mt-0.5 flex items-center gap-1">
+                    <span>Tuition records</span>
+                    <ArrowRight size={11} />
                   </p>
                 </div>
               </div>

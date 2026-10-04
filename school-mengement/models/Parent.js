@@ -20,6 +20,11 @@ const parentSchema = new mongoose.Schema(
             required: true
         },
 
+        email: {
+            type: String,
+            sparse: true
+        },
+
         student: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Student",

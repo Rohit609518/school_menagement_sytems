@@ -13,10 +13,9 @@ const Attendancemark = async (req, res) => {
         }
 
         const studentExist = await Student.findById(student);
-
         if (!studentExist) {
             return res.status(404).json({
-                message: "student not found"
+                message: "Student not found"
             });
         }
 
@@ -30,7 +29,7 @@ const Attendancemark = async (req, res) => {
             .populate("student", "name email studentclass");
 
         res.status(201).json({
-            message: "student attendance marked successfully",
+            message: "Student attendance marked successfully",
             attendance: populatedAttendance
         });
 
@@ -54,7 +53,7 @@ const getAttendance = async (req, res) => {
                 filter.student = studentDoc._id;
             } else {
                 return res.status(200).json({
-                    message: "student attendance status",
+                    message: "Student attendance status",
                     attendance: []
                 });
             }
@@ -62,12 +61,14 @@ const getAttendance = async (req, res) => {
 
         // If logged-in user is Parent, restrict to their child's records
         if (req.user && req.user.role === "Parent") {
-            const parentDoc = await Parent.findOne({ user: req.user.id });
-            if (parentDoc) {
+            const parentDoc = await Parent.findOne({
+                $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }]
+            });
+            if (parentDoc && parentDoc.student) {
                 filter.student = parentDoc.student;
             } else {
                 return res.status(200).json({
-                    message: "student attendance status",
+                    message: "Student attendance status",
                     attendance: []
                 });
             }
@@ -78,7 +79,7 @@ const getAttendance = async (req, res) => {
             .sort({ date: -1 });
 
         res.status(200).json({
-            message: "student attendance status",
+            message: "Student attendance status",
             attendance
         });
     } catch (error) {
@@ -88,39 +89,95 @@ const getAttendance = async (req, res) => {
     }
 };
 
+// GET /api/attendance/my (Student only)
+const getMyAttendance = async (req, res) => {
+    try {
+        const studentDoc = await Student.findOne({
+            $or: [{ user: req.user.id }, { _id: req.user.id }, { email: req.user.email?.toLowerCase() }]
+        });
+
+        if (!studentDoc) {
+            return res.status(200).json({
+                message: "No student profile found for this account",
+                attendance: []
+            });
+        }
+
+        const attendance = await Attendance.find({ student: studentDoc._id })
+            .populate("student", "name email studentclass")
+            .sort({ date: -1 });
+
+        res.status(200).json({
+            message: "My attendance retrieved successfully",
+            student: studentDoc,
+            attendance
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// GET /api/attendance/child (Parent only)
+const getChildAttendance = async (req, res) => {
+    try {
+        const parentDoc = await Parent.findOne({
+            $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }]
+        }).populate("student", "name email studentclass");
+
+        if (!parentDoc || !parentDoc.student) {
+            return res.status(200).json({
+                message: "No linked child found for this parent account",
+                child: null,
+                attendance: []
+            });
+        }
+
+        const attendance = await Attendance.find({ student: parentDoc.student._id })
+            .populate("student", "name email studentclass")
+            .sort({ date: -1 });
+
+        res.status(200).json({
+            message: "Child attendance retrieved successfully",
+            child: parentDoc.student,
+            attendance
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 const getAttendanceBystudent = async (req, res) => {
     try {
         const { studentId } = req.params;
 
         const student = await Student.findById(studentId);
-
         if (!student) {
             return res.status(404).json({
-                message: "student is not found"
+                message: "Student not found"
             });
         }
 
-        // Role authorization check for Student
+        // Ownership check for Student
         if (req.user && req.user.role === "Student") {
             const isOwn = String(student._id) === String(req.user.id) ||
                           (student.user && String(student.user._id || student.user) === String(req.user.id));
             if (!isOwn) {
                 return res.status(403).json({
-                    message: "You can only see your own attendance"
+                    message: "Access denied. You can only view your own attendance."
                 });
             }
         }
 
-        // Role authorization check for Parent
+        // Ownership check for Parent
         if (req.user && req.user.role === "Parent") {
             const parent = await Parent.findOne({
-                user: req.user.id,
+                $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }],
                 student: studentId
             });
 
             if (!parent) {
                 return res.status(403).json({
-                    message: "You can only see your child's attendance"
+                    message: "Access denied. You can only view your linked child's attendance."
                 });
             }
         }
@@ -132,7 +189,7 @@ const getAttendanceBystudent = async (req, res) => {
         .sort({ date: -1 });
 
         res.status(200).json({
-            message: "student Attendance By Id",
+            message: "Student Attendance By Id",
             student,
             attendance
         });
@@ -167,7 +224,7 @@ const getupdateAttendance = async (req, res) => {
         }
 
         res.status(200).json({
-            message: "student Update successfully",
+            message: "Student attendance updated successfully",
             attendance
         });
     } catch (error) {
@@ -188,7 +245,7 @@ const getdeleteByattendance = async (req, res) => {
         }
 
         res.status(200).json({
-            message: "Attendance is Delete",
+            message: "Attendance deleted successfully",
             attendance
         });
     } catch (error) {
@@ -198,13 +255,12 @@ const getdeleteByattendance = async (req, res) => {
     }
 };
 
-const getAttendancsBystudent = getAttendanceBystudent;
-
 module.exports = {
     Attendancemark,
     getAttendance,
+    getMyAttendance,
+    getChildAttendance,
     getAttendanceBystudent,
     getupdateAttendance,
-    getdeleteByattendance,
-    getAttendancsBystudent
+    getdeleteByattendance
 };

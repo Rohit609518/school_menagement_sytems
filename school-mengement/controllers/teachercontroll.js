@@ -203,6 +203,19 @@ const getMyProfile = async (req, res) => {
         }
 
         if (!teacher) {
+            if (req.user && req.user.role === "Admin") {
+                const user = await User.findById(req.user.id);
+                return res.status(200).json({
+                    message: "Admin profile",
+                    teacher: {
+                        name: user?.name || "Administrator",
+                        email: user?.email || "admin@school.com",
+                        subject: "Administration",
+                        phone: "N/A"
+                    }
+                });
+            }
+
             return res.status(404).json({
                 message: "Teacher profile not found"
             });

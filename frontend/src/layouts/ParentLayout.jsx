@@ -11,6 +11,8 @@ import {
   Menu,
   Bell,
   HeartHandshake,
+  Award,
+  Wallet,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import FamilyModeSwitcher from "../component/FamilyModeSwitcher";
@@ -32,14 +34,29 @@ function ParentLayout({ children, title = "Parent Portal", subtitle = "" }) {
       path: "/parent",
     },
     {
-      name: "Meetings",
-      icon: Handshake,
-      path: "/parent/meetings",
+      name: "Child Attendance",
+      icon: CalendarCheck,
+      path: "/parent/attendance",
     },
     {
-      name: "Student Studies",
+      name: "Child Homework",
       icon: BookOpen,
-      path: "/student",
+      path: "/parent/homework",
+    },
+    {
+      name: "Exams & Results",
+      icon: Award,
+      path: "/parent/exams",
+    },
+    {
+      name: "Tuition Fees",
+      icon: Wallet,
+      path: "/parent/fees",
+    },
+    {
+      name: "Teacher Meetings",
+      icon: Handshake,
+      path: "/parent/meetings",
     },
   ];
 
@@ -50,14 +67,24 @@ function ParentLayout({ children, title = "Parent Portal", subtitle = "" }) {
       icon: LayoutDashboard,
     },
     {
-      name: "Meetings",
-      path: "/parent/meetings",
-      icon: Handshake,
+      name: "Attendance",
+      path: "/parent/attendance",
+      icon: CalendarCheck,
     },
     {
-      name: "Student View",
-      path: "/student",
+      name: "Homework",
+      path: "/parent/homework",
       icon: BookOpen,
+    },
+    {
+      name: "Exams",
+      path: "/parent/exams",
+      icon: Award,
+    },
+    {
+      name: "Fees",
+      path: "/parent/fees",
+      icon: Wallet,
     },
   ];
 

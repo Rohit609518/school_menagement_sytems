@@ -13,10 +13,9 @@ const createfees = async (req, res) => {
         }
 
         const studentExists = await Student.findById(student);
-
         if (!studentExists) {
             return res.status(404).json({
-                message: "student not found"
+                message: "Student not found"
             });
         }
 
@@ -48,8 +47,10 @@ const createfees = async (req, res) => {
             status
         });
 
+        const populated = await Fees.findById(fees._id).populate("student", "name email studentclass");
+
         const feesResponse = {
-            ...fees.toObject(),
+            ...populated.toObject(),
             remaining
         };
 
@@ -67,70 +68,21 @@ const createfees = async (req, res) => {
 
 const getFees = async (req, res) => {
     try {
-        let filter = {};
-
-        // If user is Student, only show their own fees
-        if (req.user && req.user.role === "Student") {
-            const studentDoc = await Student.findOne({
-                $or: [{ user: req.user.id }, { _id: req.user.id }]
-            });
-            if (studentDoc) {
-                filter.student = studentDoc._id;
-            } else {
-                return res.status(200).json({
-                    message: "Fees fetched successfully",
-                    fees: []
-                });
-            }
-        }
-
-        // If user is Parent, only show their child's fees
-        if (req.user && req.user.role === "Parent") {
-            const parentDoc = await Parent.findOne({ user: req.user.id });
-            if (parentDoc) {
-                filter.student = parentDoc.student;
-            } else {
-                return res.status(200).json({
-                    message: "Fees fetched successfully",
-                    fees: []
-                });
-            }
-        }
-
-        const fees = await Fees.find(filter)
+        const fees = await Fees.find()
             .populate("student", "name email studentclass")
             .sort({ createdAt: -1 });
 
-        const feesData = fees.map((fee) => {
-            const remaining = Math.max(0, (fee.totalAmount || 0) - (fee.paidAmount || 0));
-
-            let status = fee.status;
-            if (!status) {
-                if (fee.totalAmount === 0 || fee.paidAmount === 0) {
-                    status = "pending";
-                } else if (fee.paidAmount < fee.totalAmount) {
-                    status = "partial";
-                } else {
-                    status = "paid";
-                }
-            }
-
+        const feesList = fees.map((f) => {
+            const remaining = Math.max(0, (f.totalAmount || 0) - (f.paidAmount || 0));
             return {
-                _id: fee._id,
-                student: fee.student,
-                totalAmount: fee.totalAmount,
-                paidAmount: fee.paidAmount,
-                remaining,
-                paymentDate: fee.paymentDate,
-                paymentMethod: fee.paymentMethod,
-                status,
-                createdAt: fee.createdAt
+                ...f.toObject(),
+                remaining
             };
         });
 
         res.status(200).json({
             message: "Fees fetched successfully",
-            fees: feesData
+            fees: feesList
         });
     } catch (error) {
         res.status(500).json({
@@ -139,150 +91,70 @@ const getFees = async (req, res) => {
     }
 };
 
-const getFeesId = async (req, res) => {
+// GET /api/fees/my (Student only)
+const getMyFees = async (req, res) => {
     try {
-        const fees = await Fees.findById(req.params.id)
-            .populate("student", "name email studentclass");
+        const studentDoc = await Student.findOne({
+            $or: [{ user: req.user.id }, { _id: req.user.id }, { email: req.user.email?.toLowerCase() }]
+        });
 
-        if (!fees) {
-            return res.status(404).json({
-                message: "fees not found"
+        if (!studentDoc) {
+            return res.status(200).json({
+                message: "No student profile found for this account",
+                fees: []
             });
         }
 
-        const remaining = Math.max(0, (fees.totalAmount || 0) - (fees.paidAmount || 0));
+        const fees = await Fees.find({ student: studentDoc._id })
+            .populate("student", "name email studentclass")
+            .sort({ createdAt: -1 });
 
-        let status = fees.status;
-        if (!status) {
-            if (fees.totalAmount === 0 || fees.paidAmount === 0) {
-                status = "pending";
-            } else if (fees.paidAmount < fees.totalAmount) {
-                status = "partial";
-            } else {
-                status = "paid";
-            }
-        }
-
-        const feeData = {
-            _id: fees._id,
-            student: fees.student,
-            totalAmount: fees.totalAmount,
-            paidAmount: fees.paidAmount,
-            remaining,
-            paymentDate: fees.paymentDate,
-            paymentMethod: fees.paymentMethod,
-            status,
-            createdAt: fees.createdAt
-        };
+        const feesList = fees.map((f) => {
+            const remaining = Math.max(0, (f.totalAmount || 0) - (f.paidAmount || 0));
+            return { ...f.toObject(), remaining };
+        });
 
         res.status(200).json({
-            message: "Fees fetched By ID successfully",
-            fee: feeData,
-            fees: feeData
+            message: "My fees fetched successfully",
+            student: studentDoc,
+            fees: feesList
         });
     } catch (error) {
-        res.status(500).json({
-            message: error.message
-        });
+        res.status(500).json({ message: error.message });
     }
 };
 
-const updateFees = async (req, res) => {
+// GET /api/fees/child (Parent only)
+const getChildFees = async (req, res) => {
     try {
-        const fees = await Fees.findById(req.params.id);
+        const parentDoc = await Parent.findOne({
+            $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }]
+        }).populate("student", "name email studentclass");
 
-        if (!fees) {
-            return res.status(404).json({
-                message: "Fees not found"
+        if (!parentDoc || !parentDoc.student) {
+            return res.status(200).json({
+                message: "No linked child found for this parent account",
+                child: null,
+                fees: []
             });
         }
 
-        if (req.body.student !== undefined) {
-            const studentExists = await Student.findById(req.body.student);
+        const fees = await Fees.find({ student: parentDoc.student._id })
+            .populate("student", "name email studentclass")
+            .sort({ createdAt: -1 });
 
-            if (!studentExists) {
-                return res.status(404).json({
-                    message: "student not found"
-                });
-            }
-
-            fees.student = req.body.student;
-        }
-
-        if (req.body.totalAmount !== undefined) {
-            fees.totalAmount = Number(req.body.totalAmount);
-        }
-
-        if (req.body.paidAmount !== undefined) {
-            fees.paidAmount = Number(req.body.paidAmount);
-        }
-
-        if (req.body.paymentMethod !== undefined) {
-            fees.paymentMethod = req.body.paymentMethod;
-        }
-
-        if (fees.paidAmount > fees.totalAmount) {
-            return res.status(400).json({
-                message: "Paid amount cannot be greater than total amount"
-            });
-        }
-
-        const remaining = Math.max(0, fees.totalAmount - fees.paidAmount);
-
-        let status;
-        if (fees.totalAmount === 0 || fees.paidAmount === 0) {
-            status = "pending";
-        } else if (fees.paidAmount < fees.totalAmount) {
-            status = "partial";
-        } else {
-            status = "paid";
-        }
-
-        fees.status = status;
-
-        await fees.save();
-
-        const updatedFee = {
-            _id: fees._id,
-            student: fees.student,
-            totalAmount: fees.totalAmount,
-            paidAmount: fees.paidAmount,
-            remaining,
-            paymentMethod: fees.paymentMethod,
-            status
-        };
+        const feesList = fees.map((f) => {
+            const remaining = Math.max(0, (f.totalAmount || 0) - (f.paidAmount || 0));
+            return { ...f.toObject(), remaining };
+        });
 
         res.status(200).json({
-            message: "Fees updated successfully",
-            fee: updatedFee,
-            fees: updatedFee
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            message: error.message
-        });
-    }
-};
-
-const deleteFees = async (req, res) => {
-    try {
-        const fees = await Fees.findByIdAndDelete(req.params.id);
-
-        if (!fees) {
-            return res.status(404).json({
-                message: "fees not found"
-            });
-        }
-
-        res.status(200).json({
-            message: "Fees deleted successfully",
-            fees
+            message: "Child fees fetched successfully",
+            child: parentDoc.student,
+            fees: feesList
         });
     } catch (error) {
-        res.status(500).json({
-            message: error.message
-        });
+        res.status(500).json({ message: error.message });
     }
 };
 
@@ -297,28 +169,26 @@ const getFeesByStudent = async (req, res) => {
             });
         }
 
-        // Student can only see their own fees
+        // Student ownership check
         if (req.user && req.user.role === "Student") {
             const isOwn = String(student._id) === String(req.user.id) ||
-                          (student.user && String(student.user._id || student.user) === String(req.user.id));
-
+                          (student.user && String(student.user) === String(req.user.id));
             if (!isOwn) {
                 return res.status(403).json({
-                    message: "You can only view your own fee details"
+                    message: "Access denied. You can only view your own fees."
                 });
             }
         }
 
-        // Parent can only see linked child's fees
+        // Parent ownership check
         if (req.user && req.user.role === "Parent") {
             const parent = await Parent.findOne({
-                user: req.user.id,
+                $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }],
                 student: studentId
             });
-
             if (!parent) {
                 return res.status(403).json({
-                    message: "You can only see your child's fee details"
+                    message: "Access denied. You can only view your child's fees."
                 });
             }
         }
@@ -327,35 +197,140 @@ const getFeesByStudent = async (req, res) => {
             .populate("student", "name email studentclass")
             .sort({ createdAt: -1 });
 
-        const feesData = fees.map((fee) => {
-            const remaining = Math.max(0, (fee.totalAmount || 0) - (fee.paidAmount || 0));
-
-            let status = fee.status;
-            if (!status) {
-                if (fee.totalAmount === 0 || fee.paidAmount === 0) {
-                    status = "pending";
-                } else if (fee.paidAmount < fee.totalAmount) {
-                    status = "partial";
-                } else {
-                    status = "paid";
-                }
-            }
-
-            return {
-                _id: fee._id,
-                student: fee.student,
-                totalAmount: fee.totalAmount,
-                paidAmount: fee.paidAmount,
-                remaining,
-                paymentMethod: fee.paymentMethod,
-                status,
-                createdAt: fee.createdAt
-            };
+        const feesList = fees.map((f) => {
+            const remaining = Math.max(0, (f.totalAmount || 0) - (f.paidAmount || 0));
+            return { ...f.toObject(), remaining };
         });
 
         res.status(200).json({
             message: "Student fees fetched successfully",
-            fees: feesData
+            student,
+            fees: feesList
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+};
+
+const getFeesId = async (req, res) => {
+    try {
+        const fee = await Fees.findById(req.params.id)
+            .populate("student", "name email studentclass");
+
+        if (!fee) {
+            return res.status(404).json({
+                message: "Fee record not found"
+            });
+        }
+
+        // Student ownership check
+        if (req.user && req.user.role === "Student") {
+            const studentId = fee.student?._id;
+            const student = await Student.findById(studentId);
+            const isOwn = student && (
+                String(student._id) === String(req.user.id) ||
+                (student.user && String(student.user) === String(req.user.id))
+            );
+            if (!isOwn) {
+                return res.status(403).json({
+                    message: "Access denied. You can only view your own fees."
+                });
+            }
+        }
+
+        // Parent ownership check
+        if (req.user && req.user.role === "Parent") {
+            const parent = await Parent.findOne({
+                $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }],
+                student: fee.student?._id
+            });
+            if (!parent) {
+                return res.status(403).json({
+                    message: "Access denied. You can only view your child's fees."
+                });
+            }
+        }
+
+        const remaining = Math.max(0, (fee.totalAmount || 0) - (fee.paidAmount || 0));
+
+        res.status(200).json({
+            message: "Fee record fetched successfully",
+            fee: {
+                ...fee.toObject(),
+                remaining
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+};
+
+const updateFees = async (req, res) => {
+    try {
+        const fee = await Fees.findById(req.params.id);
+        if (!fee) {
+            return res.status(404).json({
+                message: "Fee record not found"
+            });
+        }
+
+        const { totalAmount, paidAmount, paymentMethod, status } = req.body;
+
+        if (totalAmount !== undefined) fee.totalAmount = Number(totalAmount);
+        if (paidAmount !== undefined) fee.paidAmount = Number(paidAmount);
+        if (paymentMethod !== undefined) fee.paymentMethod = paymentMethod;
+
+        if (fee.paidAmount > fee.totalAmount) {
+            return res.status(400).json({
+                message: "Paid amount cannot be greater than total amount"
+            });
+        }
+
+        if (status !== undefined) {
+            fee.status = status;
+        } else {
+            if (fee.paidAmount === 0) fee.status = "pending";
+            else if (fee.paidAmount < fee.totalAmount) fee.status = "partial";
+            else fee.status = "paid";
+        }
+
+        await fee.save();
+
+        const updatedFee = await Fees.findById(fee._id)
+            .populate("student", "name email studentclass");
+
+        const remaining = Math.max(0, (updatedFee.totalAmount || 0) - (updatedFee.paidAmount || 0));
+
+        res.status(200).json({
+            message: "Fees updated successfully",
+            fee: {
+                ...updatedFee.toObject(),
+                remaining
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+};
+
+const deleteFees = async (req, res) => {
+    try {
+        const fee = await Fees.findByIdAndDelete(req.params.id);
+        if (!fee) {
+            return res.status(404).json({
+                message: "Fee record not found"
+            });
+        }
+
+        res.status(200).json({
+            message: "Fees deleted successfully",
+            fee
         });
     } catch (error) {
         res.status(500).json({
@@ -367,6 +342,8 @@ const getFeesByStudent = async (req, res) => {
 module.exports = {
     createfees,
     getFees,
+    getMyFees,
+    getChildFees,
     getFeesByStudent,
     getFeesId,
     updateFees,

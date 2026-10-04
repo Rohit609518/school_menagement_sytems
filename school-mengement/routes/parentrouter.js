@@ -5,8 +5,10 @@ const {
     getParents,
     getParentById,
     getMyProfile,
+    getChildren,
     updateParent,
-    deleteParent
+    deleteParent,
+    assignStudentToParent
 } = require("../controllers/parentcontrol");
 
 const Protect = require("../middleware/authmiddleware");
@@ -14,20 +16,22 @@ const rolmiddleware = require("../middleware/rollmiddleware");
 
 const router = express.Router();
 
+// Admin-only Parent Management
 router.post(
     "/",
     Protect,
-    rolmiddleware("Admin", "Teacher"),
+    rolmiddleware("Admin"),
     createParent
 );
 
 router.get(
     "/",
     Protect,
-    rolmiddleware("Admin", "Teacher"),
+    rolmiddleware("Admin"),
     getParents
 );
 
+// Parent personal profile
 router.get(
     "/my-profile",
     Protect,
@@ -35,25 +39,40 @@ router.get(
     getMyProfile
 );
 
+// Parent linked children
+router.get(
+    "/children",
+    Protect,
+    rolmiddleware("Parent", "Admin"),
+    getChildren
+);
+
 router.get(
     "/:id",
     Protect,
-    rolmiddleware("Admin", "Teacher"),
+    rolmiddleware("Admin"),
     getParentById
 );
 
 router.put(
     "/:id",
     Protect,
-    rolmiddleware("Admin", "Teacher"),
+    rolmiddleware("Admin"),
     updateParent
 );
 
 router.delete(
     "/:id",
     Protect,
-    rolmiddleware("Admin", "Teacher"),
+    rolmiddleware("Admin"),
     deleteParent
+);
+
+router.put(
+    "/:id/assign-student",
+    Protect,
+    rolmiddleware("Admin"),
+    assignStudentToParent
 );
 
 module.exports = router;

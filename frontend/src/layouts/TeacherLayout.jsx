@@ -12,6 +12,8 @@ import {
   GraduationCap,
   DollarSign,
   UserCheck,
+  FileText,
+  Award,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -32,7 +34,7 @@ function TeacherLayout({ children, title = "Teacher Portal", subtitle = "" }) {
       path: "/teacher",
     },
     {
-      name: "Students",
+      name: "My Students",
       icon: Users,
       path: "/teacher/students",
     },
@@ -42,19 +44,24 @@ function TeacherLayout({ children, title = "Teacher Portal", subtitle = "" }) {
       path: "/teacher/attendance",
     },
     {
-      name: "Results & Grades",
+      name: "Homework",
       icon: BookOpen,
+      path: "/teacher/homework",
+    },
+    {
+      name: "Exams",
+      icon: FileText,
+      path: "/teacher/exams",
+    },
+    {
+      name: "Results & Grades",
+      icon: Award,
       path: "/teacher/results",
     },
     {
-      name: "Fees Records",
+      name: "Fees Status",
       icon: DollarSign,
-      path: "/admin/fees",
-    },
-    {
-      name: "Parents Corner",
-      icon: UserCheck,
-      path: "/admin/parents",
+      path: "/teacher/fees",
     },
     {
       name: "Meetings",
@@ -80,14 +87,14 @@ function TeacherLayout({ children, title = "Teacher Portal", subtitle = "" }) {
       icon: CalendarCheck,
     },
     {
-      name: "Results",
-      path: "/teacher/results",
+      name: "Homework",
+      path: "/teacher/homework",
       icon: BookOpen,
     },
     {
-      name: "Meetings",
-      path: "/teacher/meetings",
-      icon: Handshake,
+      name: "Exams",
+      path: "/teacher/exams",
+      icon: FileText,
     },
   ];
 

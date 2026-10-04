@@ -40,10 +40,14 @@ function Sidebar({ isOpen, onClose }) {
     navigate("/");
   };
 
+  const userRole = (user?.role || "").toLowerCase();
+
   const menuItems = [
     { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
     { name: "Students", path: "/admin/students", icon: Users },
-    { name: "Teachers", path: "/admin/teachers", icon: GraduationCap },
+    ...(userRole === "admin"
+      ? [{ name: "Teachers", path: "/admin/teachers", icon: GraduationCap }]
+      : []),
     { name: "Parents", path: "/admin/parents", icon: UserRound },
     { name: "Fees & Dues", path: "/admin/fees", icon: Wallet },
     { name: "Meetings", path: "/teacher/meetings", icon: Handshake },

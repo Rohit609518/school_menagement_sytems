@@ -33,10 +33,10 @@ router.get(
 );
 router.get("/",Protect,rolmiddleware("Admin","Teacher"),getStudent)
 
-router.get("/:id",Protect,rolmiddleware("Admin", "Teacher", "Student"),getFindId);
+router.get("/:id", Protect, rolmiddleware("Admin", "Teacher", "Student", "Parent"), getFindId);
 
-router.put("/:id",Protect,rolmiddleware("Admin","Teacher"),updatestudent);
+router.put("/:id", Protect, rolmiddleware("Admin", "Teacher"), updatestudent);
 
-router.delete("/:id",Protect,rolmiddleware("Admin", "Teacher"),DeleteStudent);
+router.delete("/:id", Protect, rolmiddleware("Admin"), DeleteStudent);
 
 module.exports = router ;

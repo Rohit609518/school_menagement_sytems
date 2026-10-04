@@ -28,7 +28,6 @@ const createExam = async (req, res) => {
 
         // Check student exists
         const studentExists = await Student.findById(student);
-
         if (!studentExists) {
             return res.status(404).json({
                 message: "Student not found"
@@ -67,110 +66,143 @@ const createExam = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Create exam error:", error);
         res.status(500).json({
             message: error.message
         });
     }
 };
 
+// Get all Exams
 const getexams = async (req, res) => {
     try {
-        let filter = {};
-
-        if (req.user && req.user.role === "Student") {
-            const studentDoc = await Student.findOne({
-                $or: [{ user: req.user.id }, { _id: req.user.id }]
-            });
-            if (studentDoc) {
-                filter.student = studentDoc._id;
-            } else {
-                return res.status(200).json({
-                    message: "Student weekly test here",
-                    exams: []
-                });
-            }
-        }
-
-        if (req.user && req.user.role === "Parent") {
-            const parentDoc = await Parent.findOne({ user: req.user.id });
-            if (parentDoc) {
-                filter.student = parentDoc.student;
-            } else {
-                return res.status(200).json({
-                    message: "Student weekly test here",
-                    exams: []
-                });
-            }
-        }
-
-        const exams = await Exam.find(filter)
+        const exams = await Exam.find()
             .populate("student", "name email studentclass")
             .sort({ examDate: -1, createdAt: -1 });
 
-        const examsData = exams.map((exam) => {
-            const total = exam.totalsmark || exam.totalMarks || 1;
-            const percentage = (exam.obtainedMarks / total) * 100;
-
+        const formattedExams = exams.map((exam) => {
+            const total = exam.totalsmark || 1;
+            const percentage = Number(((exam.obtainedMarks / total) * 100).toFixed(2));
             return {
-                _id: exam._id,
-                student: exam.student,
-                subject: exam.subject,
-                examname: exam.examname || exam.examName,
-                examName: exam.examname || exam.examName,
-                totalsmark: exam.totalsmark || exam.totalMarks,
-                totalMarks: exam.totalsmark || exam.totalMarks,
-                obtainedMarks: exam.obtainedMarks,
-                percentage: Number(percentage.toFixed(2)),
-                examDate: exam.examDate
+                ...exam.toObject(),
+                percentage
             };
         });
 
         res.status(200).json({
-            message: "Student weekly test here",
-            exams: examsData
+            message: "Exams fetched successfully",
+            exams: formattedExams
         });
+
     } catch (error) {
+        console.error("Get exams error:", error);
         res.status(500).json({
             message: error.message
         });
     }
 };
 
-// Get exams by student ID
+// GET /api/exams/my (Student only)
+const getMyExams = async (req, res) => {
+    try {
+        const studentDoc = await Student.findOne({
+            $or: [{ user: req.user.id }, { _id: req.user.id }, { email: req.user.email?.toLowerCase() }]
+        });
+
+        if (!studentDoc) {
+            return res.status(200).json({
+                message: "No student profile found for this account",
+                exams: []
+            });
+        }
+
+        const exams = await Exam.find({ student: studentDoc._id })
+            .populate("student", "name email studentclass")
+            .sort({ examDate: -1, createdAt: -1 });
+
+        const formattedExams = exams.map((exam) => {
+            const total = exam.totalsmark || 1;
+            const percentage = Number(((exam.obtainedMarks / total) * 100).toFixed(2));
+            return { ...exam.toObject(), percentage };
+        });
+
+        res.status(200).json({
+            message: "My exams fetched successfully",
+            student: studentDoc,
+            exams: formattedExams
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// GET /api/exams/child (Parent only)
+const getChildExams = async (req, res) => {
+    try {
+        const parentDoc = await Parent.findOne({
+            $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }]
+        }).populate("student", "name email studentclass");
+
+        if (!parentDoc || !parentDoc.student) {
+            return res.status(200).json({
+                message: "No linked child found for this parent account",
+                child: null,
+                exams: []
+            });
+        }
+
+        const exams = await Exam.find({ student: parentDoc.student._id })
+            .populate("student", "name email studentclass")
+            .sort({ examDate: -1, createdAt: -1 });
+
+        const formattedExams = exams.map((exam) => {
+            const total = exam.totalsmark || 1;
+            const percentage = Number(((exam.obtainedMarks / total) * 100).toFixed(2));
+            return { ...exam.toObject(), percentage };
+        });
+
+        res.status(200).json({
+            message: "Child exams fetched successfully",
+            child: parentDoc.student,
+            exams: formattedExams
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Get Exams By Student
 const getExamsByStudent = async (req, res) => {
     try {
         const { studentId } = req.params;
 
         const student = await Student.findById(studentId);
-
         if (!student) {
             return res.status(404).json({
                 message: "Student not found"
             });
         }
 
-        // Student can see only own exams
+        // Student ownership check
         if (req.user && req.user.role === "Student") {
             const isOwn = String(student._id) === String(req.user.id) ||
                           (student.user && String(student.user) === String(req.user.id));
-
             if (!isOwn) {
                 return res.status(403).json({
-                    message: "You can only view your own exams"
+                    message: "Access denied. You can only see your own exams."
                 });
             }
         }
 
-        // Parent can see only linked child's exams
+        // Parent ownership check
         if (req.user && req.user.role === "Parent") {
             const parent = await Parent.findOne({
-                user: req.user.id,
+                $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }],
                 student: studentId
             });
-
             if (!parent) {
                 return res.status(403).json({
-                    message: "You can only see your child's exams"
+                    message: "Access denied. You can only see your child's exams."
                 });
             }
         }
@@ -179,38 +211,31 @@ const getExamsByStudent = async (req, res) => {
             .populate("student", "name email studentclass")
             .sort({ examDate: -1, createdAt: -1 });
 
-        const examsData = exams.map((exam) => {
-            const total = exam.totalsmark || exam.totalMarks || 1;
-            const percentage = (exam.obtainedMarks / total) * 100;
-
-            return {
-                _id: exam._id,
-                student: exam.student,
-                subject: exam.subject,
-                examname: exam.examname || exam.examName,
-                examName: exam.examname || exam.examName,
-                totalsmark: exam.totalsmark || exam.totalMarks,
-                totalMarks: exam.totalsmark || exam.totalMarks,
-                obtainedMarks: exam.obtainedMarks,
-                percentage: Number(percentage.toFixed(2)),
-                examDate: exam.examDate
-            };
+        const formattedExams = exams.map((exam) => {
+            const total = exam.totalsmark || 1;
+            const percentage = Number(((exam.obtainedMarks / total) * 100).toFixed(2));
+            return { ...exam.toObject(), percentage };
         });
 
         res.status(200).json({
             message: "Student exams fetched successfully",
-            exams: examsData
+            student,
+            exams: formattedExams
         });
+
     } catch (error) {
+        console.error("Get exams by student error:", error);
         res.status(500).json({
             message: error.message
         });
     }
 };
 
+// Get Exam By ID
 const getExamsId = async (req, res) => {
     try {
-        const exam = await Exam.findById(req.params.id).populate("student", "name email studentclass");
+        const exam = await Exam.findById(req.params.id)
+            .populate("student", "name email studentclass");
 
         if (!exam) {
             return res.status(404).json({
@@ -218,112 +243,120 @@ const getExamsId = async (req, res) => {
             });
         }
 
-        const total = exam.totalsmark || exam.totalMarks || 1;
-        const percentage = (exam.obtainedMarks / total) * 100;
+        // Student ownership check
+        if (req.user && req.user.role === "Student") {
+            const studentId = exam.student?._id;
+            const student = await Student.findById(studentId);
+            const isOwn = student && (
+                String(student._id) === String(req.user.id) ||
+                (student.user && String(student.user) === String(req.user.id))
+            );
+            if (!isOwn) {
+                return res.status(403).json({
+                    message: "Access denied. You can only see your own exam."
+                });
+            }
+        }
+
+        // Parent ownership check
+        if (req.user && req.user.role === "Parent") {
+            const parent = await Parent.findOne({
+                $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }],
+                student: exam.student?._id
+            });
+            if (!parent) {
+                return res.status(403).json({
+                    message: "Access denied. You can only see your child's exam."
+                });
+            }
+        }
+
+        const total = exam.totalsmark || 1;
+        const percentage = Number(((exam.obtainedMarks / total) * 100).toFixed(2));
 
         res.status(200).json({
             message: "Exam fetched successfully",
             exam: {
-                _id: exam._id,
-                student: exam.student,
-                subject: exam.subject,
-                examname: exam.examname || exam.examName,
-                examName: exam.examname || exam.examName,
-                totalsmark: exam.totalsmark || exam.totalMarks,
-                totalMarks: exam.totalsmark || exam.totalMarks,
-                obtainedMarks: exam.obtainedMarks,
-                percentage: Number(percentage.toFixed(2)),
-                examDate: exam.examDate
+                ...exam.toObject(),
+                percentage
             }
         });
+
     } catch (error) {
+        console.error("Get exam by ID error:", error);
         res.status(500).json({
             message: error.message
         });
     }
 };
 
+// Update Exam
 const updateExam = async (req, res) => {
     try {
         const exam = await Exam.findById(req.params.id);
-
         if (!exam) {
             return res.status(404).json({
                 message: "Exam not found"
             });
         }
 
-        // Update student
-        if (req.body.student !== undefined) {
-            const studentExists = await Student.findById(req.body.student);
+        const {
+            student,
+            subject,
+            examname,
+            examName,
+            totalsmark,
+            totalMarks,
+            obtainedMarks,
+            examDate
+        } = req.body;
 
+        if (student) {
+            const studentExists = await Student.findById(student);
             if (!studentExists) {
-                return res.status(404).json({
-                    message: "Student not found"
-                });
+                return res.status(404).json({ message: "Student not found" });
             }
-
-            exam.student = req.body.student;
+            exam.student = student;
         }
 
-        // Update subject
-        if (req.body.subject !== undefined) {
-            exam.subject = req.body.subject;
-        }
+        if (subject) exam.subject = subject.trim();
+        if (examname || examName) exam.examname = (examname || examName).trim();
+        if (totalsmark !== undefined) exam.totalsmark = Number(totalsmark);
+        else if (totalMarks !== undefined) exam.totalsmark = Number(totalMarks);
+        if (obtainedMarks !== undefined) exam.obtainedMarks = Number(obtainedMarks);
+        if (examDate) exam.examDate = examDate;
 
-        // Update exam name
-        if (req.body.examname !== undefined) {
-            exam.examname = req.body.examname;
-        } else if (req.body.examName !== undefined) {
-            exam.examname = req.body.examName;
-        }
-
-        // Update total marks
-        if (req.body.totalsmark !== undefined) {
-            exam.totalsmark = Number(req.body.totalsmark);
-        } else if (req.body.totalMarks !== undefined) {
-            exam.totalsmark = Number(req.body.totalMarks);
-        }
-
-        // Update obtained marks
-        if (req.body.obtainedMarks !== undefined) {
-            exam.obtainedMarks = Number(req.body.obtainedMarks);
-        }
-
-        // Check marks
         if (exam.obtainedMarks > exam.totalsmark) {
             return res.status(400).json({
                 message: "Obtained marks cannot be greater than total marks"
             });
         }
 
-        // Update exam date
-        if (req.body.examDate !== undefined) {
-            exam.examDate = req.body.examDate;
-        }
-
         await exam.save();
 
-        const total = exam.totalsmark || 1;
-        const percentage = Number(((exam.obtainedMarks / total) * 100).toFixed(2));
+        const updatedExam = await Exam.findById(exam._id)
+            .populate("student", "name email studentclass");
 
-        const updated = await Exam.findById(exam._id).populate("student", "name email studentclass");
+        const total = updatedExam.totalsmark || 1;
+        const percentage = Number(((updatedExam.obtainedMarks / total) * 100).toFixed(2));
 
         res.status(200).json({
             message: "Exam updated successfully",
             exam: {
-                ...updated.toObject(),
+                ...updatedExam.toObject(),
                 percentage
             }
         });
 
     } catch (error) {
+        console.error("Update exam error:", error);
         res.status(500).json({
             message: error.message
         });
     }
 };
 
+// Delete Exam
 const deleteExam = async (req, res) => {
     try {
         const exam = await Exam.findByIdAndDelete(req.params.id);
@@ -340,6 +373,7 @@ const deleteExam = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Delete exam error:", error);
         res.status(500).json({
             message: error.message
         });
@@ -349,6 +383,8 @@ const deleteExam = async (req, res) => {
 module.exports = {
     createExam,
     getexams,
+    getMyExams,
+    getChildExams,
     getExamsByStudent,
     getExamsId,
     updateExam,

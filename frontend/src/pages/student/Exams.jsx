@@ -23,11 +23,12 @@ function Exams() {
       setLoading(true);
       setError("");
 
-      const profile = await getMyStudentProfile();
-      const studentId = profile?.student?._id;
-
-      if (!studentId) {
-        throw new Error("Student profile could not be identified");
+      let studentId = null;
+      try {
+        const profile = await getMyStudentProfile();
+        studentId = profile?.student?._id;
+      } catch (e) {
+        console.log("Profile fetch note:", e.message);
       }
 
       const data = await getMyExams(studentId);

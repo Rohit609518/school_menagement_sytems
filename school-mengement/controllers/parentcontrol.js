@@ -1,12 +1,15 @@
 const Parent = require("../models/Parent");
 const User = require("../models/user");
 const Student = require("../models/student");
+const bcrypt = require("bcryptjs");
 
 const createParent = async (req, res) => {
     try {
         const {
             user,
             name,
+            email,
+            password,
             phone,
             student
         } = req.body;
@@ -25,20 +28,29 @@ const createParent = async (req, res) => {
             });
         }
 
-        // Check User if provided
         let parentUser = null;
         if (user) {
             parentUser = await User.findById(user);
-            if (!parentUser) {
-                return res.status(404).json({
-                    message: "User not found"
-                });
-            }
+        }
 
-            if (parentUser.role !== "Parent") {
-                return res.status(400).json({
-                    message: "User role must be Parent"
+        // If email provided, create or link User account with Parent role
+        if (!parentUser && email) {
+            const normalizedEmail = email.trim().toLowerCase();
+            parentUser = await User.findOne({ email: normalizedEmail });
+
+            if (!parentUser) {
+                const defaultPass = password || "Parent@123";
+                const hashpassword = await bcrypt.hash(defaultPass, 12);
+                parentUser = await User.create({
+                    name: name.trim(),
+                    email: normalizedEmail,
+                    password: hashpassword,
+                    role: "Parent"
                 });
+                console.log(`✓ Parent user created: ${normalizedEmail}`);
+            } else if (parentUser.role !== "Parent") {
+                parentUser.role = "Parent";
+                await parentUser.save();
             }
         }
 
@@ -48,8 +60,12 @@ const createParent = async (req, res) => {
             student
         };
 
-        if (user) {
-            parentData.user = user;
+        if (email) {
+            parentData.email = email.trim().toLowerCase();
+        }
+
+        if (parentUser) {
+            parentData.user = parentUser._id;
         }
 
         // Create Parent
@@ -57,7 +73,7 @@ const createParent = async (req, res) => {
 
         const populatedParent = await Parent.findById(parent._id)
             .populate("user", "name email role")
-            .populate("student", "name email studentclass");
+            .populate("student", "name email studentclass age gender");
 
         res.status(201).json({
             message: "Parent created successfully",
@@ -76,7 +92,7 @@ const getParents = async (req, res) => {
     try {
         const parents = await Parent.find()
             .populate("user", "name email role")
-            .populate("student", "name email studentclass")
+            .populate("student", "name email studentclass age gender")
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -94,7 +110,7 @@ const getParentById = async (req, res) => {
     try {
         const parent = await Parent.findById(req.params.id)
             .populate("user", "name email role")
-            .populate("student", "name email studentclass");
+            .populate("student", "name email studentclass age gender");
 
         if (!parent) {
             return res.status(404).json({
@@ -119,17 +135,29 @@ const getMyProfile = async (req, res) => {
             user: req.user.id
         })
         .populate("user", "name email role")
-        .populate("student", "name email studentclass");
+        .populate("student", "name email studentclass age gender");
+
+        if (!parent && req.user.email) {
+            parent = await Parent.findOne({
+                email: req.user.email.toLowerCase()
+            })
+            .populate("user", "name email role")
+            .populate("student", "name email studentclass age gender");
+
+            if (parent && !parent.user) {
+                parent.user = req.user.id;
+                await parent.save();
+            }
+        }
 
         if (!parent) {
             const user = await User.findById(req.user.id);
             if (user) {
-                // Try linking if a parent with matching phone or email exists
                 parent = await Parent.findOne({
-                    $or: [{ name: user.name }]
+                    name: user.name
                 })
                 .populate("user", "name email role")
-                .populate("student", "name email studentclass");
+                .populate("student", "name email studentclass age gender");
 
                 if (parent && !parent.user) {
                     parent.user = user._id;
@@ -139,6 +167,17 @@ const getMyProfile = async (req, res) => {
         }
 
         if (!parent) {
+            if (req.user && req.user.role === "Admin") {
+                const user = await User.findById(req.user.id);
+                return res.status(200).json({
+                    message: "Admin parent profile",
+                    parent: {
+                        name: user?.name || "Administrator",
+                        phone: "N/A"
+                    }
+                });
+            }
+
             return res.status(404).json({
                 message: "Parent profile not found"
             });
@@ -149,6 +188,39 @@ const getMyProfile = async (req, res) => {
             parent
         });
 
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+};
+
+// GET linked children for parent
+const getChildren = async (req, res) => {
+    try {
+        let parent = await Parent.findOne({
+            $or: [{ user: req.user.id }, { email: req.user.email?.toLowerCase() }]
+        }).populate("student", "name email studentclass age gender");
+
+        if (!parent) {
+            return res.status(404).json({
+                message: "Parent profile not found"
+            });
+        }
+
+        if (!parent.student) {
+            return res.status(200).json({
+                message: "No child linked to this parent account",
+                children: [],
+                child: null
+            });
+        }
+
+        res.status(200).json({
+            message: "Linked child fetched successfully",
+            children: [parent.student],
+            child: parent.student
+        });
     } catch (error) {
         res.status(500).json({
             message: error.message
@@ -181,7 +253,7 @@ const updateParent = async (req, res) => {
             }
         )
         .populate("user", "name email role")
-        .populate("student", "name email studentclass");
+        .populate("student", "name email studentclass age gender");
 
         if (!parent) {
             return res.status(404).json({
@@ -223,11 +295,44 @@ const deleteParent = async (req, res) => {
     }
 };
 
+const assignStudentToParent = async (req, res) => {
+    try {
+        const { studentId } = req.body;
+        if (!studentId) {
+            return res.status(400).json({ message: "studentId is required" });
+        }
+
+        const student = await Student.findById(studentId);
+        if (!student) {
+            return res.status(404).json({ message: "Student not found" });
+        }
+
+        const parent = await Parent.findByIdAndUpdate(
+            req.params.id,
+            { student: studentId },
+            { new: true }
+        ).populate("student", "name email studentclass age gender");
+
+        if (!parent) {
+            return res.status(404).json({ message: "Parent not found" });
+        }
+
+        res.status(200).json({
+            message: "Student assigned to parent successfully",
+            parent
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     createParent,
     getParents,
     getParentById,
     getMyProfile,
+    getChildren,
     updateParent,
-    deleteParent
+    deleteParent,
+    assignStudentToParent
 };

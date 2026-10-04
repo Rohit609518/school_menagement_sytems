@@ -108,6 +108,20 @@ const getFindId = async (req, res) => {
             }
         }
 
+        // Parent can only view their linked child's profile
+        if (req.user && req.user.role === "Parent") {
+            const Parent = require("../models/Parent");
+            const parent = await Parent.findOne({
+                user: req.user.id,
+                student: student._id
+            });
+            if (!parent) {
+                return res.status(403).json({
+                    message: "Access denied. You can only view your linked child's profile."
+                });
+            }
+        }
+
         res.status(200).json({
             message: "student findById successfully",
             data: student,
@@ -282,6 +296,17 @@ const getMyprofile = async (req, res) => {
         }
 
         if (!student) {
+            if (req.user && req.user.role === "Admin") {
+                return res.status(200).json({
+                    message: "Admin profile",
+                    student: {
+                        name: user?.name || "Administrator",
+                        email: user?.email || "admin@school.com",
+                        studentclass: "Staff/Admin"
+                    }
+                });
+            }
+
             return res.status(404).json({
                 message: "Student profile not found"
             });
