@@ -172,6 +172,32 @@ function Login() {
               </>
             )}
           </button>
+
+          {/* Quick Demo Fill */}
+          <div className="pt-4 mt-2 border-t border-slate-100">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 text-center">
+              Default Admin Account
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setFormData({
+                  email: "admin@school.com",
+                  password: "admin123",
+                });
+                setError("");
+              }}
+              className="w-full py-2 px-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl text-xs text-slate-700 hover:text-indigo-700 transition flex items-center justify-between cursor-pointer"
+            >
+              <div className="flex flex-col text-left">
+                <span className="font-semibold text-indigo-600">Administrator</span>
+                <span className="text-[11px] text-slate-500">admin@school.com (pass: admin123)</span>
+              </div>
+              <span className="text-[11px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-medium">
+                Auto-fill
+              </span>
+            </button>
+          </div>
         </form>
       </div>
     </div>
