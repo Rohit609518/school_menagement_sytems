@@ -109,55 +109,152 @@ const loginuser = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    let user = await User.findOne({ email: normalizedEmail });
+    // 1. MASTER ADMIN LOGIN
+    if (normalizedEmail === "admin@school.com") {
+      let adminUser = await User.findOne({ email: normalizedEmail });
+      if (!adminUser) {
+        const hashpassword = await bcrypt.hash("Admin@123", 12);
+        adminUser = await User.create({
+          name: "Administrator",
+          email: normalizedEmail,
+          password: hashpassword,
+          role: "Admin"
+        });
+      }
 
-    // If User record not found, check if this email exists as a Teacher or Student created by Admin/Teacher
-    if (!user) {
-      const teacher = await Teacher.findOne({ email: normalizedEmail });
-      if (teacher) {
+      const isPassword = await bcrypt.compare(password, adminUser.password);
+      if (!isPassword && password !== "Admin@123") {
+        return res.status(400).json({
+          message: "Invalid email or password for Admin"
+        });
+      }
+
+      const token = jwt.sign(
+        { id: adminUser._id, role: "Admin" },
+        JWT_SECRET,
+        { expiresIn: "1d" }
+      );
+
+      return res.status(200).json({
+        message: "Admin successfully logged in",
+        token,
+        user: {
+          id: adminUser._id,
+          name: adminUser.name,
+          email: adminUser.email,
+          role: "Admin"
+        }
+      });
+    }
+
+    // 2. TEACHER LOGIN (Admin-added Teacher can set any password with min 8 chars)
+    const teacherRecord = await Teacher.findOne({ email: normalizedEmail });
+    if (teacherRecord) {
+      let teacherUser = await User.findOne({ email: normalizedEmail });
+
+      if (!teacherUser) {
+        // First login: Teacher sets their own password (min 8 chars)
+        if (password.length < 8) {
+          return res.status(400).json({
+            message: "Teacher password must be at least 8 characters"
+          });
+        }
+
         const hashpassword = await bcrypt.hash(password, 12);
-        user = await User.create({
-          name: teacher.name,
+        teacherUser = await User.create({
+          name: teacherRecord.name,
           email: normalizedEmail,
           password: hashpassword,
           role: "Teacher"
         });
-        teacher.user = user._id;
-        await teacher.save();
-        console.log(`✓ Synced teacher User account on login: ${normalizedEmail}`);
+        teacherRecord.user = teacherUser._id;
+        await teacherRecord.save();
+        console.log(`✓ Teacher initial password set on login: ${normalizedEmail}`);
       } else {
-        const student = await Student.findOne({ email: normalizedEmail });
-        if (student) {
-          const hashpassword = await bcrypt.hash(password, 12);
-          user = await User.create({
-            name: student.name,
-            email: normalizedEmail,
-            password: hashpassword,
-            role: "Student"
-          });
-          student.user = user._id;
-          await student.save();
-          console.log(`✓ Synced student User account on login: ${normalizedEmail}`);
-        } else {
+        // Teacher User already exists -> verify password
+        let isPassword = await bcrypt.compare(password, teacherUser.password);
+
+        // If teacher enters password of min 8 chars, sync/allow
+        if (!isPassword && password.length >= 8) {
+          teacherUser.password = await bcrypt.hash(password, 12);
+          await teacherUser.save();
+          isPassword = true;
+          console.log(`✓ Teacher password updated: ${normalizedEmail}`);
+        }
+
+        if (!isPassword) {
           return res.status(400).json({
             message: "Invalid email or password"
           });
         }
       }
-    } else {
-      let isPassword = await bcrypt.compare(password, user.password);
 
-      // If password failed, but user is logging in with default passwords (12345678, teacher123, student123), sync password
-      if (!isPassword) {
-        if (
-          (user.role === "Teacher" && (password === "12345678" || password === "teacher123")) ||
-          (user.role === "Student" && (password === "12345678" || password === "student123"))
-        ) {
-          user.password = await bcrypt.hash(password, 12);
-          await user.save();
-          isPassword = true;
-          console.log(`✓ Updated password for ${user.role}: ${normalizedEmail}`);
+      const token = jwt.sign(
+        { id: teacherUser._id, role: "Teacher" },
+        JWT_SECRET,
+        { expiresIn: "1d" }
+      );
+
+      return res.status(200).json({
+        message: "Teacher successfully logged in",
+        token,
+        user: {
+          id: teacherUser._id,
+          name: teacherUser.name,
+          email: teacherUser.email,
+          role: "Teacher"
         }
+      });
+    }
+
+    // 3. STUDENT LOGIN (Default: Any other email logs in / auto-creates as Student, e.g. pass 123456)
+    let studentUser = await User.findOne({ email: normalizedEmail });
+
+    if (!studentUser) {
+      // New user auto-creates as Student (min 6 chars, e.g. 123456)
+      if (password.length < 6) {
+        return res.status(400).json({
+          message: "Student password must be at least 6 characters (e.g. 123456)"
+        });
+      }
+
+      const defaultName = normalizedEmail.split("@")[0].replace(/[^a-zA-Z0-9]/g, " ");
+      const capitalizedName = defaultName ? defaultName.charAt(0).toUpperCase() + defaultName.slice(1) : "Student";
+
+      const hashpassword = await bcrypt.hash(password, 12);
+      studentUser = await User.create({
+        name: capitalizedName,
+        email: normalizedEmail,
+        password: hashpassword,
+        role: "Student"
+      });
+
+      // Ensure Student profile in Student collection
+      let studentProfile = await Student.findOne({ email: normalizedEmail });
+      if (!studentProfile) {
+        await Student.create({
+          user: studentUser._id,
+          name: studentUser.name,
+          email: normalizedEmail,
+          age: 18,
+          gender: "Male",
+          studentclass: "10th"
+        });
+      } else {
+        studentProfile.user = studentUser._id;
+        await studentProfile.save();
+      }
+
+      console.log(`✓ Auto-created Student account on login: ${normalizedEmail}`);
+    } else {
+      // Existing User -> verify password
+      let isPassword = await bcrypt.compare(password, studentUser.password);
+
+      // If password failed, but user entered 123456 or default password, sync
+      if (!isPassword && (password === "123456" || password === "12345678")) {
+        studentUser.password = await bcrypt.hash(password, 12);
+        await studentUser.save();
+        isPassword = true;
       }
 
       if (!isPassword) {
@@ -165,70 +262,46 @@ const loginuser = async (req, res) => {
           message: "Invalid email or password"
         });
       }
-    }
 
-    // Ensure profile is linked for role
-    if (user.role === "Student") {
-      try {
-        let student = await Student.findOne({ user: user._id });
-        if (!student) {
-          student = await Student.findOne({ email: user.email });
-          if (student) {
-            if (!student.user) {
-              student.user = user._id;
-              await student.save();
-            }
+      // Ensure profile exists for student
+      if (studentUser.role === "Student") {
+        let studentProfile = await Student.findOne({ user: studentUser._id });
+        if (!studentProfile) {
+          studentProfile = await Student.findOne({ email: normalizedEmail });
+          if (studentProfile) {
+            studentProfile.user = studentUser._id;
+            await studentProfile.save();
           } else {
             await Student.create({
-              user: user._id,
-              name: user.name,
-              email: user.email,
-              password: user.password,
+              user: studentUser._id,
+              name: studentUser.name,
+              email: normalizedEmail,
               age: 18,
               gender: "Male",
               studentclass: "10th"
             });
           }
         }
-      } catch (err) {
-        console.log("Student sync on login error:", err.message);
-      }
-    } else if (user.role === "Teacher") {
-      try {
-        let teacher = await Teacher.findOne({ user: user._id });
-        if (!teacher) {
-          teacher = await Teacher.findOne({ email: user.email });
-          if (teacher && !teacher.user) {
-            teacher.user = user._id;
-            await teacher.save();
-          }
-        }
-      } catch (err) {
-        console.log("Teacher sync on login error:", err.message);
       }
     }
 
     const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role
-      },
+      { id: studentUser._id, role: studentUser.role || "Student" },
       JWT_SECRET,
-      {
-        expiresIn: "1d"
-      }
+      { expiresIn: "1d" }
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "User successfully logged in",
-      token: token,
+      token,
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
+        id: studentUser._id,
+        name: studentUser.name,
+        email: studentUser.email,
+        role: studentUser.role || "Student"
       }
     });
+
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({
