@@ -20,6 +20,7 @@ function Login() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    role: "Admin",
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -106,6 +107,32 @@ function Login() {
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Role Selector */}
+          <div>
+            <label className="block mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Select Your Role
+            </label>
+            <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-xl">
+              {["Admin", "Teacher", "Student", "Parent"].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, role: r })}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition cursor-pointer text-center ${
+                    formData.role === r
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              New user? We'll automatically register your account in the database!
+            </p>
+          </div>
+
           <div>
             <label className="block mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
               Email Address
