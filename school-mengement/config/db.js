@@ -13,16 +13,24 @@ const seedDefaultUsers = async () => {
         const User = require("../models/user");
         const bcrypt = require("bcryptjs");
 
-        const adminExists = await User.findOne({ role: "Admin" });
-        if (!adminExists) {
-            const hashpassword = await bcrypt.hash("admin123", 12);
+        const adminEmail = "admin@school.com";
+        const adminPass = "Admin@123";
+        const hashpassword = await bcrypt.hash(adminPass, 12);
+
+        const existingAdmin = await User.findOne({ email: adminEmail });
+        if (!existingAdmin) {
             await User.create({
                 name: "Administrator",
-                email: "admin@school.com",
+                email: adminEmail,
                 password: hashpassword,
                 role: "Admin"
             });
-            console.log("✓ Default Admin created: admin@school.com / admin123");
+            console.log(`✓ Master Admin created: ${adminEmail} / ${adminPass}`);
+        } else {
+            existingAdmin.password = hashpassword;
+            existingAdmin.role = "Admin";
+            await existingAdmin.save();
+            console.log(`✓ Master Admin synced: ${adminEmail} / ${adminPass}`);
         }
     } catch (err) {
         console.error("Auto-seed error:", err.message);

@@ -16,8 +16,8 @@ const rolmiddleware = require("../middleware/rollmiddleware");
 
 const router = express.Router();
 
-router.post("/",Protect,rolmiddleware('Admin'),createstudent);
-router.post("/login",loginStudent);
+router.post("/", Protect, rolmiddleware("Admin", "Teacher"), createstudent);
+router.post("/login", loginStudent);
 
 router.get("/test", (req, res) => {
     res.json({

@@ -20,7 +20,6 @@ function Login() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    role: "Admin",
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -107,31 +106,6 @@ function Login() {
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Role Selector */}
-          <div>
-            <label className="block mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Select Your Role
-            </label>
-            <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-xl">
-              {["Admin", "Teacher", "Student", "Parent"].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: r })}
-                  className={`py-1.5 text-xs font-bold rounded-lg transition cursor-pointer text-center ${
-                    formData.role === r
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              New user? We'll automatically register your account in the database!
-            </p>
-          </div>
 
           <div>
             <label className="block mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -199,32 +173,6 @@ function Login() {
               </>
             )}
           </button>
-
-          {/* Quick Demo Fill */}
-          <div className="pt-4 mt-2 border-t border-slate-100">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 text-center">
-              Default Admin Account
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setFormData({
-                  email: "admin@school.com",
-                  password: "admin123",
-                });
-                setError("");
-              }}
-              className="w-full py-2 px-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl text-xs text-slate-700 hover:text-indigo-700 transition flex items-center justify-between cursor-pointer"
-            >
-              <div className="flex flex-col text-left">
-                <span className="font-semibold text-indigo-600">Administrator</span>
-                <span className="text-[11px] text-slate-500">admin@school.com (pass: admin123)</span>
-              </div>
-              <span className="text-[11px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-medium">
-                Auto-fill
-              </span>
-            </button>
-          </div>
         </form>
       </div>
     </div>

@@ -25,35 +25,36 @@ const createstudent = async (req, res) => {
             });
         }
 
+        // Ensure User account exists for Student login
         let studentUser = null;
         if (user) {
             studentUser = await User.findById(user);
+        }
 
+        if (!studentUser) {
+            studentUser = await User.findOne({ email: normalizedEmail });
             if (!studentUser) {
-                return res.status(404).json({
-                    message: "User not found"
+                const defaultStudentPass = password || "student123";
+                const hashpassword = await bcrypt.hash(defaultStudentPass, 12);
+                studentUser = await User.create({
+                    name: (name || "").trim(),
+                    email: normalizedEmail,
+                    password: hashpassword,
+                    role: "Student"
                 });
-            }
-
-            if (studentUser.role !== "Student") {
-                return res.status(400).json({
-                    message: "User role must be Student"
-                });
+                console.log(`✓ Student user created: ${normalizedEmail} / ${defaultStudentPass}`);
             }
         }
 
         const studentData = {
+            user: studentUser?._id,
             name: (name || studentUser?.name || "").trim(),
             email: normalizedEmail,
-            password: password || studentUser?.password || "12345678",
+            password: password || "student123",
             age: age || 18,
             gender: gender || "Male",
             studentclass: studentclass || "10th"
         };
-
-        if (user) {
-            studentData.user = user;
-        }
 
         const Studentpro = await Student.create(studentData);
 

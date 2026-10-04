@@ -1,5 +1,6 @@
 const Teacher = require("../models/teacher");
 const User = require("../models/user");
+const bcrypt = require("bcryptjs");
 
 const createTeacher = async (req, res) => {
     try {
@@ -30,25 +31,29 @@ const createTeacher = async (req, res) => {
             });
         }
 
-        // Check User if provided
+        // Ensure User account exists for Teacher login
         let teacherUser = null;
         if (user) {
             teacherUser = await User.findById(user);
+        }
 
+        if (!teacherUser) {
+            teacherUser = await User.findOne({ email: normalizedEmail });
             if (!teacherUser) {
-                return res.status(404).json({
-                    message: "User not found"
+                const defaultTeacherPass = req.body.password || "teacher123";
+                const hashpassword = await bcrypt.hash(defaultTeacherPass, 12);
+                teacherUser = await User.create({
+                    name: name.trim(),
+                    email: normalizedEmail,
+                    password: hashpassword,
+                    role: "Teacher"
                 });
-            }
-
-            if (teacherUser.role !== "Teacher") {
-                return res.status(400).json({
-                    message: "User role must be Teacher"
-                });
+                console.log(`✓ Teacher user created: ${normalizedEmail} / ${defaultTeacherPass}`);
             }
         }
 
         const teacherData = {
+            user: teacherUser?._id,
             name: name.trim(),
             email: normalizedEmail,
             phone: phone.trim(),
@@ -56,10 +61,6 @@ const createTeacher = async (req, res) => {
             experience: Number(experience) || 0,
             salary: Number(salary) || 0
         };
-
-        if (user) {
-            teacherData.user = user;
-        }
 
         // Create Teacher
         const teachers = await Teacher.create(teacherData);

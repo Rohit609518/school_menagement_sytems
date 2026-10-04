@@ -99,7 +99,7 @@ const createRgesiter = async (req, res) => {
 
 const loginuser = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -109,46 +109,20 @@ const loginuser = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    let user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email: normalizedEmail });
 
-    // If user does not exist, auto-create and save to database!
     if (!user) {
-      const defaultName = normalizedEmail.split("@")[0].replace(/[^a-zA-Z0-9]/g, " ");
-      const capitalizedName = defaultName ? defaultName.charAt(0).toUpperCase() + defaultName.slice(1) : "New User";
-
-      // Determine role: use provided role, or auto-detect
-      let assignedRole = role;
-      if (!assignedRole) {
-        const adminCount = await User.countDocuments({ role: "Admin" });
-        if (normalizedEmail.includes("admin") || adminCount === 0) {
-          assignedRole = "Admin";
-        } else if (normalizedEmail.includes("teacher")) {
-          assignedRole = "Teacher";
-        } else if (normalizedEmail.includes("parent")) {
-          assignedRole = "Parent";
-        } else {
-          assignedRole = "Student";
-        }
-      }
-
-      const hashpassword = await bcrypt.hash(password, 12);
-      user = await User.create({
-        name: req.body.name || capitalizedName,
-        email: normalizedEmail,
-        password: hashpassword,
-        role: assignedRole
+      return res.status(400).json({
+        message: "Invalid email or password"
       });
+    }
 
-      console.log(`Auto-created new user in database: ${normalizedEmail} with role: ${user.role}`);
-    } else {
-      // If user already exists, verify their password
-      const isPassword = await bcrypt.compare(password, user.password);
+    const isPassword = await bcrypt.compare(password, user.password);
 
-      if (!isPassword) {
-        return res.status(400).json({
-          message: "Invalid email or password"
-        });
-      }
+    if (!isPassword) {
+      return res.status(400).json({
+        message: "Invalid email or password"
+      });
     }
 
     // Ensure profile is linked for role
