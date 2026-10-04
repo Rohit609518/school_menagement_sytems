@@ -41,23 +41,19 @@ app.use("/api/parents", parentRoutes);
 
 
 app.get("/", (req, res) => {
-
     res.send("student mengement system runing");
-})
+});
 
-async function serverstart() {
-    try {
-        await connectDB();
-    } catch (err) {
-        console.error("Database connection failed:", err);
-    }
+app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date() });
+});
 
-    const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
-    app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on port ${PORT}`);
-    });
-}
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on port  http://localhost:${PORT}`);
+    // Connect to database in the background without blocking port scan
+    connectDB();
+});
 
-serverstart();
 
