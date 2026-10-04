@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
+export const BACKEND_URL = "https://school-menagement-sytems.onrender.com";
+export const API_URL = import.meta.env.VITE_API_URL || `${BACKEND_URL}/api`;
+
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -92,6 +95,8 @@ export const AuthProvider = ({ children }) => {
         linkFamilyMember,
         clearAllFamily,
         loading,
+        apiUrl: API_URL,
+        backendUrl: BACKEND_URL,
       }}
     >
       {children}
