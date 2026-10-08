@@ -14,14 +14,6 @@ const createHomework = async (req, res) => {
             });
         }
 
-        // Validate Student exists
-        const studentExists = await Student.findById(student);
-        if (!studentExists) {
-            return res.status(404).json({
-                message: "Student not found"
-            });
-        }
-
         let assignedTeacherId = teacher;
 
         // Teacher can only create homework for themselves
@@ -58,6 +50,41 @@ const createHomework = async (req, res) => {
                     });
                 }
             }
+        }
+
+        // If broadcasting to ALL students
+        if (student === "ALL" || student === "all") {
+            const allStudents = await Student.find();
+            if (allStudents.length === 0) {
+                return res.status(404).json({
+                    message: "No students found to assign homework"
+                });
+            }
+
+            const docs = allStudents.map((s) => ({
+                teacher: assignedTeacherId,
+                student: s._id,
+                subject,
+                title,
+                description,
+                duedate: resolvedDueDate
+            }));
+
+            const createdHomework = await Homework.insertMany(docs);
+            return res.status(201).json({
+                message: `Homework successfully assigned to all ${createdHomework.length} students`,
+                count: createdHomework.length,
+                homework: createdHomework[0],
+                allHomework: createdHomework
+            });
+        }
+
+        // Validate Single Student exists
+        const studentExists = await Student.findById(student);
+        if (!studentExists) {
+            return res.status(404).json({
+                message: "Student not found"
+            });
         }
 
         const homework = await Homework.create({
