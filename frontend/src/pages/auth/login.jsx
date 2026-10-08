@@ -7,11 +7,6 @@ import {
   Lock,
   Mail,
   ArrowRight,
-  Shield,
-  Sparkles,
-  Users,
-  UserCheck,
-  UserRound,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { loginUser } from "../../services/authservice";
@@ -28,49 +23,6 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const demoAccounts = [
-    {
-      role: "Admin",
-      label: "Administrator",
-      email: "admin@school.com",
-      password: "Admin@123",
-      color: "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100",
-      icon: Shield,
-    },
-    {
-      role: "Teacher",
-      label: "Teacher / Faculty",
-      email: "teacher@school.com",
-      password: "Teacher@123",
-      color: "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100",
-      icon: GraduationCap,
-    },
-    {
-      role: "Student",
-      label: "Enrolled Student",
-      email: "student@school.com",
-      password: "Student@123",
-      color: "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100",
-      icon: Users,
-    },
-    {
-      role: "Parent",
-      label: "Guardian / Parent",
-      email: "parent@school.com",
-      password: "Parent@123",
-      color: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100",
-      icon: UserRound,
-    },
-  ];
-
-  const fillDemo = (acc) => {
-    setFormData({
-      email: acc.email,
-      password: acc.password,
-    });
-    setError("");
-  };
 
   const handleChange = (e) => {
     setFormData({
@@ -141,40 +93,6 @@ function Login() {
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Role-Based Access Control (RBAC) School Management
           </p>
-        </div>
-
-        {/* 1-Click Demo Accounts Selector */}
-        <div className="mb-5">
-          <p className="text-[11px] font-bold uppercase text-slate-400 tracking-wider mb-2 flex items-center gap-1.5">
-            <Sparkles size={12} className="text-amber-500" />
-            <span>1-Click Demo Login</span>
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {demoAccounts.map((acc) => {
-              const Icon = acc.icon;
-              const isSelected = formData.email === acc.email;
-              return (
-                <button
-                  key={acc.role}
-                  type="button"
-                  onClick={() => fillDemo(acc)}
-                  className={`p-2 rounded-xl border text-left transition flex items-center gap-2 ${
-                    acc.color
-                  } ${isSelected ? "ring-2 ring-indigo-500 ring-offset-1 font-bold" : ""}`}
-                >
-                  <Icon size={16} className="shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold truncate leading-tight">
-                      {acc.role}
-                    </p>
-                    <p className="text-[9px] opacity-75 truncate">
-                      {acc.label}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* Error Alert */}

@@ -90,7 +90,7 @@ function TeacherHomework() {
   const openCreateModal = () => {
     setEditingId(null);
     setFormData({
-      student: students[0]?._id || "",
+      student: "ALL",
       subject: teacher?.subject || "Mathematics",
       title: "",
       description: "",
@@ -133,8 +133,12 @@ function TeacherHomework() {
         await updateHomework(editingId, payload);
         setSuccessMsg("Homework assignment updated successfully!");
       } else {
-        await createHomework(payload);
-        setSuccessMsg("Homework assignment created successfully!");
+        const res = await createHomework(payload);
+        if (formData.student === "ALL") {
+          setSuccessMsg(res?.message || `Homework successfully broadcasted to all ${students.length} students!`);
+        } else {
+          setSuccessMsg("Homework assignment created successfully!");
+        }
       }
 
       setIsModalOpen(false);
@@ -341,21 +345,57 @@ function TeacherHomework() {
 
             <form onSubmit={handleSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Select Student *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700 uppercase">
+                    Target Student *
+                  </label>
+                  {!editingId && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          student: formData.student === "ALL" ? (students[0]?._id || "") : "ALL",
+                        })
+                      }
+                      className={`text-[11px] px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
+                        formData.student === "ALL"
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                      }`}
+                    >
+                      <span>{formData.student === "ALL" ? "✓ All Selected" : "📢 Select All Students"}</span>
+                    </button>
+                  )}
+                </div>
+
                 <select
                   required
                   value={formData.student}
                   onChange={(e) => setFormData({ ...formData, student: e.target.value })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                  className={`w-full px-3.5 py-2.5 text-xs border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-medium ${
+                    formData.student === "ALL"
+                      ? "bg-emerald-50/80 border-emerald-300 text-emerald-900 font-bold"
+                      : "bg-slate-50 border-slate-200"
+                  }`}
                 >
+                  {!editingId && (
+                    <option value="ALL" className="font-bold text-emerald-800 bg-emerald-50">
+                      📢 ALL STUDENTS ({students.length} Enrolled) — Broadcast to Whole Class
+                    </option>
+                  )}
                   {students.map((s) => (
                     <option key={s._id} value={s._id}>
                       {s.name} (Class {s.studentclass || "10th"})
                     </option>
                   ))}
                 </select>
+
+                {formData.student === "ALL" && (
+                  <p className="mt-1 text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+                    <span>✨ This homework will be sent to all {students.length} students at once.</span>
+                  </p>
+                )}
               </div>
 
               <div>
